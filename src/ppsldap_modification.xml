@@ -1,0 +1,259 @@
+<?xml version="1.0"?>
+<!DOCTYPE modification SYSTEM "http://www.simplemachines.org/xml/modification">
+<!--
+	ATTENTION: If you are trying to install this manually, you should try
+	the package manager.  If it will not work for you, please take a look
+	at the following for information on this format:
+	http://mods.simplemachines.org/docs/manual-install.php
+-->
+
+<modification xmlns="http://www.simplemachines.org/xml/modification" xmlns:smf="http://www.simplemachines.org/">
+	<id>LukyLuke:PPSLdapAuth</id>
+	<version>0.1.1</version>
+
+	<!-- Edit LogInOut.php to enable PPSLdapAuth integration -->
+	<file name="$sourcedir/LogInOut.php">
+		<operation>
+			<search position="after"><![CDATA[
+	// Are we using any sort of integration to validate the login?
+	if (in_array('retry', call_integration_hook('integrate_validate_login', array($_POST['user'], isset($_POST['hash_passwrd']) && strlen($_POST['hash_passwrd']) == 40 ? $_POST['hash_passwrd'] : null, $modSettings['cookieTime'])), true))
+	{
+		$context['login_errors'] = array($txt['login_hash_error']);
+		$context['disable_login_hashing'] = true;
+		return;
+	}
+]]></search>
+			<add><![CDATA[
+
+	// Call smf_ppsldap_auth() to repopulate table
+	require_once($sourcedir . '/PPSLdapAuth.php');
+	$ppsldap = smf_ppsldap_auth($_POST['user'], $_POST['passwrd'], $modSettings['cookieTime']);
+
+]]></add>
+		</operation>
+		<operation>
+			<search position="replace"><![CDATA[
+	if ($user_settings['passwd'] != $sha_passwd)
+	{]]></search>
+			<add><![CDATA[
+	if ($user_settings['passwd'] != $sha_passwd && !$ppsldap)
+	{]]></add>
+		</operation>
+	</file>
+
+	<!-- edit Modifications.english.php to add language texts for menu -->
+	<file name="$languagedir/Modifications.english.php">
+		<operation>
+			<search position="after"><![CDATA[?>]]></search>
+<add><![CDATA[
+
+$txt['mods_cat_ppsldapauth'] = 'PPS LdapAuth';
+$txt['ppsldapauth_Title'] = 'PPS LDAP-Authentication Mod Options';
+$txt['ppsldapauth_enable'] = 'Enable PPS LDAP-Authentication';
+$txt['ppsldapauth_serverurl'] = 'Ldap-Server <span class="smalltext">(eg ldap://yourldapserver.tld)</span>';
+$txt['ppsldapauth_searchdn'] = 'Ldap <em>search dn</em> for your users <span class="smalltext">(eg OU=Your Users,DC=yourdomain,DC=yourtld)</span>';
+$txt['ppsldapauth_searchkey'] = 'Ldap <em>search key</em> for locating user <span class="smalltext">(often cn, but for MSAD, sAMAccountName)</span>';
+$txt['ppsldapauth_fullnameattr'] = 'Ldap Attribute from which to extract the real name <span class="smalltext">(cn for MSAD, name or fullname for others)</span>';
+$txt['ppsldapauth_emailuselogin'] = 'Use login username to construct email address';
+$txt['ppsldapauth_emailsuffix'] = '&nbsp; &nbsp; Suffix to add to login for email address <span class="smalltext">(eg @domain.tld, above must be checked)</span>';
+$txt['ppsldapauth_emailattr'] = 'Ldap Attribute from which to extract email address <span class="smalltext">(if above is not checked)</span>';
+$txt['ppsldapauth_locationuseou'] = 'Use the top level ldap OU to extract the users location';
+$txt['ppsldapauth_locationattr'] = 'Ldap Attribute from which to extract location <span class="smalltext">(if above is not checked)</span>';
+$txt['ppsldapauth_updateonlogin'] = 'Update User information from Ldap on every login <span class="smalltext">(e.g. Name, Location, Email)</span>';
+$txt['ppsldapauth_passwdindb'] = 'Store LDAP passwords in the database';
+$txt['ppsldapauth_regresnames'] = 'Allow reserved login names to be autoregistered by Ldap Auth <span class="smalltext">May be a security risk with some ldap directories</span>';
+$txt['ppsldapauth_authresnames'] = 'Allow reserved login names to be authenticated by Ldap Auth <span class="smalltext">Useful to disable to enforce local accounts for e.g. admin</span>';
+$txt['ppsldapauth_binddn'] = 'DN to use for binding to Ldap directory to query for new user registrations';
+$txt['ppsldapauth_bindusername'] = 'Username to use for binding to Ldap directory to query for new user registrations <span class="smalltext">(if above is not checked)</span>';
+$txt['ppsldapauth_bindpassword'] = 'Password to use for binding to Ldap directory';
+$txt['ppsldapregister_title'] = 'Register Ldap Member';
+$txt['ppsldapregister_description'] = 'Here you can register members from your LDAP directory who haven\'t logged into SMF yet. This is especially useful if you need to grant group membership or edit their profile prior to their first use of the board.';
+
+]]></add>
+		</operation>
+	</file>
+
+	<!-- edit Modifications.german.php to add language texts for menu -->
+	<file name="$languagedir/Modifications.german.php">
+		<operation error="skip">
+			<search position="after"><![CDATA[?>]]></search>
+<add><![CDATA[
+
+$txt['mods_cat_ppsldapauth'] = 'PPS LdapAuth';
+$txt['ppsldapauth_Title'] = 'Ldap Authorisierung Mod Optionen';
+$txt['ppsldapauth_enable'] = 'Enable Ldap Authentication';
+$txt['ppsldapauth_serverurl'] = 'Ldap-Server <span class="smalltext">(eg ldap://yourldapserver.tld)</span>';
+$txt['ppsldapauth_searchdn'] = 'Ldap search dn in welcher die Benutzer sind <span class="smalltext">(eg OU=Your Users,DC=yourdomain,DC=yourtld)</span>';
+$txt['ppsldapauth_searchkey'] = 'Ldap search key in welcher der Benutzername ist <span class="smalltext">(often cn, but for MSAD, sAMAccountName)</span>';
+$txt['ppsldapauth_fullnameattr'] = 'Ldap Attribut aus welchem der Name extrahiert werden soll <span class="smalltext">(cn for MSAD, name or fullname for others)</span>';
+$txt['ppsldapauth_emailuselogin'] = 'Benutze den Loginnamen um die Emailadresse zu generieren';
+$txt['ppsldapauth_emailsuffix'] = '&nbsp; &nbsp; Anhang an den Loginnamen f&uuml;r die Emailadresse <span class="smalltext">(eg @domain.tld, obiges muss angew&auml;hlt sein)</span>';
+$txt['ppsldapauth_emailattr'] = 'Ldap Attribute in welcher die Emailadresse steht <span class="smalltext">(Wenn die obigen Optione nicht gew&auml;hlt sind)</span>';
+$txt['ppsldapauth_locationuseou'] = 'Benutze die top level OU des Ldap um die Ortschaft ausfindig zu machen';
+$txt['ppsldapauth_locationattr'] = 'Ldap Attribute in welchem der Ortschaft steht <span class="smalltext">(wenn nicht oben angew&auml;hlt)</span>';
+$txt['ppsldapauth_updateonlogin'] = 'Benutzerinformationen bei jedem Login aus dem LDAP aktualisieren <span class="smalltext">(e.g. Name, Ortschaft, Email)</span>';
+$txt['ppsldapauth_passwdindb'] = 'Speichere das LDAP-Passwort in der Datenbank';
+$txt['ppsldapauth_regresnames'] = 'Erlaube die automatische Registrierung von reservierten Benutzernamen <span class="smalltext">Sicherheitskritische bei einigen Ldap-Servern</span>';
+$txt['ppsldapauth_authresnames'] = 'Erlaube das anmelden von reservierten Loginnamen <span class="smalltext">N&uuml;tzlich um lokale Accounts zu deaktivieren, eg admin</span>';
+$txt['ppsldapauth_binddn'] = 'DN f&uuml;r die Anmeldung zum Ldap-Server';
+$txt['ppsldapauth_bindusername'] = 'Benutzername f&uuml;r die Anmeldung zum Ldap-Server <span class="smalltext">(wenn nicht oben angew&auml;hlt)</span>';
+$txt['ppsldapauth_bindpassword'] = 'Passwort f&uuml;r die Ldap-Server Anmeldung';
+$txt['ppsldapregister_title'] = 'Register Ldap Member';
+$txt['ppsldapregister_description'] = 'Hier k&ouml;nnen die LDAP-Benutzer ins SMF &uuml;bertragen werden welche sich noch nie angemeldet haben. Dies ist n&uuml;tzlich wenn Benutzer in Gruppen eingetelt werden sollen oder ihre Profile vor dem ersten Login bearbeitet werden m&uuml;ssen.';
+
+]]></add>
+		</operation>
+	</file>
+
+<!-- Add PPS-LDAP configuration menu to Admin.php -->
+	<file name="$sourcedir/Admin.php">
+		<operation>
+			<search position="before"><![CDATA[
+					'subsections' => array(
+						'basic' => array($txt['mods_cat_features']),
+						'layout' => array($txt['mods_cat_layout']),]]>
+			</search>
+			<add><![CDATA[						'ppsldapauth' => array($txt['mods_cat_ppsldapauth']),]]>
+			</add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[
+					'subsections' => array(
+						'register' => array($txt['admin_browse_register_new'], 'moderate_forum'),]]>
+			</search>
+			<add><![CDATA[						'ppsldapregister' => array($txt['ppsldapregister_title'], 'moderate_forum'),]]>
+			</add>
+		</operation>
+	</file>
+
+<!-- Add a section in "Forum Configuration >> Edit Features and Options" in ManageSettings.php -->
+	<file name="$sourcedir/ManageSettings.php">
+		<operation>
+			<search position="before"><![CDATA[	$context['page_title'] = $txt['modSettings_title'];
+
+	$subActions = array(
+		'basic' => 'ModifyBasicSettings',]]></search>
+			<add><![CDATA[
+		'ppsldapauth' => 'ModifyPPSLdapAuthSettings',
+		]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[			'basic' => array(
+			),]]></search>
+			<add><![CDATA[
+			'ppsldapauth' => array(
+			),]]></add>
+		</operation>
+
+		<operation>
+			<search position="after"><![CDATA[?>]]></search>
+			<add><![CDATA[
+// PPS-LDAP Authentication Settings
+function ModifyPPSLdapAuthSettings() {
+	global $context, $txt, $scripturl, $modSettings, $db_prefix, $helptxt;
+
+	$config_vars = array(
+		array('check', 'ppsldapauth_enable'),
+		array('text',  'ppsldapauth_serverurl'),
+		array('text',  'ppsldapauth_searchdn', '40'),
+		array('text',  'ppsldapauth_searchkey'),
+		array('check', 'ppsldapauth_authresnames'),
+		array('check', 'ppsldapauth_regresnames'),
+		array('text',  'ppsldapauth_fullnameattr'),
+		array('check', 'ppsldapauth_emailuselogin'),
+		array('text',  'ppsldapauth_emailsuffix'),
+		array('text',  'ppsldapauth_emailattr'),
+		array('check', 'ppsldapauth_locationuseou'),
+		array('text',  'ppsldapauth_locationattr'),
+		array('check', 'ppsldapauth_updateonlogin'),
+		array('check', 'ppsldapauth_passwdindb'),
+		array('text',  'ppsldapauth_binddn'),
+		array('text',  'ppsldapauth_bindusername'),
+		array('text',  'ppsldapauth_bindpassword')
+	);
+
+	// Saving?
+	if (isset($_GET['save'])) {
+		saveDBSettings($config_vars);
+		writeLog();
+		redirectexit('action=admin;area=featuresettings;sa=ppsldapauth');
+	}
+
+	$context['post_url'] = $scripturl . '?action=admin;area=featuresettings;save;sa=ppsldapauth';
+	$context['settings_title'] = $txt['ppsldapauth_Title'];
+
+	prepareDBSettingContext($config_vars);
+}
+
+]]></add>
+		</operation>
+	</file>
+
+<!-- Add a section in "Members / Registration" to ManageRegistration.php -->
+	<file name="$sourcedir/ManageRegistration.php">
+		<operation>
+			<search position="before"><![CDATA[
+	$subActions = array(
+		'register' => array('AdminRegister', 'moderate_forum'),]]></search>
+			<add><![CDATA[
+		'ppsldapregister' => array('smf_ppsldap_register', 'moderate_forum'),]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[
+			'register' => array(
+				'description' => $txt['admin_register_desc'],
+			),]]></search>
+			<add><![CDATA[
+			'ppsldapregister' => array(
+				'description' => $txt['ppsldapregister_description'],
+			),]]></add>
+		</operation>
+
+		<operation>
+			<search position="after"><![CDATA[?>]]></search>
+			<add><![CDATA[
+
+// Include the function smf_ppsldap_register() from PPSLdapAuth.php
+require_once($sourcedir . '/PPSLdapAuth.php');
+
+]]></add>
+		</operation>
+	</file>
+
+
+<!-- Add a section in "Members / Registration" to Register.template.php -->
+	<file name="$themedir/Register.template.php">
+		<operation>
+			<search position="after"><![CDATA[?>]]></search>
+			<add><![CDATA[
+
+// Include the function template_ppsldap_register() from PPSLdapAuth.php
+require_once($sourcedir . '/PPSLdapAuth.php');
+
+]]></add>
+		</operation>
+	</file>
+
+<!-- Disable Password-Modification in Profile-Modify.php -->
+	<file name="$sourcedir/Profile-Modify.php">
+		<operation>
+			<search position="before"><![CDATA[
+	$disabled_fields = !empty($modSettings['disabled_profile_fields']) ? explode(',', $modSettings['disabled_profile_fields']) : array();
+]]></search>
+			<add><![CDATA[
+	if (isset($modSettings['ppsldapauth_enable']) && $modSettings['ppsldapauth_enable']) {
+		$disabled_fields[] = 'passwrd1';
+		$disabled_fields[] = 'passwrd2';
+		$disabled_fields[] = 'secret_question';
+		$disabled_fields[] = 'secret_answer';
+		$disabled_fields[] = 'email_address';
+		$disabled_fields[] = 'member_name';
+	}
+]]></add>
+		</operation>
+	</file>
+
+</modification>
