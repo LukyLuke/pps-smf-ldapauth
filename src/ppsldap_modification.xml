@@ -68,6 +68,7 @@ $txt['ppsldapauth_bindusername'] = 'Username to use for binding to Ldap director
 $txt['ppsldapauth_bindpassword'] = 'Password to use for binding to Ldap directory';
 $txt['ppsldapregister_title'] = 'Register Ldap Member';
 $txt['ppsldapregister_description'] = 'Here you can register members from your LDAP directory who haven\'t logged into SMF yet. This is especially useful if you need to grant group membership or edit their profile prior to their first use of the board.';
+$txt['ppsldapsynchronize_description'] = 'Synchronize Members';
 
 ]]></add>
 		</operation>
@@ -100,6 +101,7 @@ $txt['ppsldapauth_bindusername'] = 'Benutzername f&uuml;r die Anmeldung zum Ldap
 $txt['ppsldapauth_bindpassword'] = 'Passwort f&uuml;r die Ldap-Server Anmeldung';
 $txt['ppsldapregister_title'] = 'Register Ldap Member';
 $txt['ppsldapregister_description'] = 'Hier k&ouml;nnen die LDAP-Benutzer ins SMF &uuml;bertragen werden welche sich noch nie angemeldet haben. Dies ist n&uuml;tzlich wenn Benutzer in Gruppen eingetelt werden sollen oder ihre Profile vor dem ersten Login bearbeitet werden m&uuml;ssen.';
+$txt['ppsldapsynchronize_description'] = 'Benutzer Synchronisieren';
 
 ]]></add>
 		</operation>
@@ -186,6 +188,42 @@ function ModifyPPSLdapAuthSettings() {
 
 	prepareDBSettingContext($config_vars);
 }
+
+]]></add>
+		</operation>
+	</file>
+
+<!-- Add a section in "Members / Members" to ManageMembers.php -->
+	<file name="$sourcedir/ManageMembers.php">
+		<operation>
+			<search position="before"><![CDATA[
+	$subActions = array(
+		'all' => array('ViewMemberlist', 'moderate_forum'),]]></search>
+			<add><![CDATA[
+		'ppsldapsynchronize' => array('smf_ppsldap_synchronize', 'moderate_forum'),]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[		'viewmembers' => array(
+			'label' => $txt['view_all_members'],
+			'description' => $txt['admin_members_list'],
+			'url' => $scripturl . '?action=admin;area=viewmembers;sa=all',
+			'is_selected' => $_REQUEST['sa'] == 'all',
+		),]]></search>
+			<add><![CDATA[
+		'ppsldapsynchronize' => array(
+			'label' => $txt['ppsldapsynchronize_description'],
+			'description' => $txt['ppsldapsynchronize_description'],
+			'is_selected' => $_REQUEST['sa'] == 'ppsldapsynchronize'
+		),]]></add>
+		</operation>
+
+		<operation>
+			<search position="after"><![CDATA[?>]]></search>
+			<add><![CDATA[
+
+// Include the function smf_ppsldap_synchronize() from PPSLdapAuth.php
+require_once($sourcedir . '/PPSLdapAuth.php');
 
 ]]></add>
 		</operation>

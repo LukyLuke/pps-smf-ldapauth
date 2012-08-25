@@ -361,6 +361,113 @@ function smf_ppsldap_register() {
 	$smcFunc['db_free_result']($request);
 }
 
+// Allow an Administrator to synchronize all Userdata from LDAP into SMF
+function smf_ppsldap_synchronize() {
+	global $context, $txt, $scripturl, $modSettings, $helptxt, $sourcedir, $smcFunc, $firephp;
+	
+	if (!empty($_POST['syncSubmit']) && ($_POST['dosync'] == 'true')) {
+		checkSession();
+		
+		// Prepare to get data from ldap directory
+		$attributes = array($modSettings['ppsldapauth_fullnameattr']);
+		if (isset($modSettings['ppsldapauth_emailattr']) && !empty($modSettings['ppsldapauth_emailattr'])) {
+			$attributes[] = $modSettings['ppsldapauth_emailattr'];
+		}
+
+		if (isset($modSettings['ppsldapauth_locationattr']) && !empty($modSettings['ppsldapauth_locationattr'])) {
+			$attributes[] = $modSettings['ppsldapauth_locationattr'];
+		}
+
+		if ($lds = ldap_connect($modSettings['ppsldapauth_serverurl'])) {
+			// Try to use LDAPv3 - which is needed by MSAD for example and should be used on others also for security-reason
+			if (ldap_set_option($lds, LDAP_OPT_PROTOCOL_VERSION, 3)) {
+				ldap_set_option($lds, LDAP_OPT_REFERRALS, false);
+			} else {
+				ldap_set_option($lds, LDAP_OPT_REFERRALS, true);
+			}
+
+			// Bind to the LDAP-Server by given binddn or bind anonymously and rebind with a username if one is given
+			$bound = false;
+			if (!empty($modSettings['ppsldapauth_binddn'])) {
+				$bound = ldap_bind($lds, $modSettings['ppsldapauth_binddn'], $modSettings['ppsldapauth_bindpassword']);
+			}
+
+			// Anonymous bind
+			if (!$bound) {
+				$bound = ldap_bind($lds);
+			}
+
+			// Re-bind using bindusername DN
+			if ($bound && ( isset($modSettings['ppsldapauth_bindusername']) && $modSettings['ppsldapauth_bindusername'] ) && !( isset($modSettings['ppsldapauth_binddn']) && $modSettings['ppsldapauth_binddn'] ) ) {
+				$lsearch = ldap_search($lds, $modSettings['ppsldapauth_searchdn'], "({$modSettings['ppsldapauth_searchkey']}={$modSettings['ppsldapauth_bindusername']})", array('dn'));
+				$bound = ( ldap_count_entries($lds, $lsearch) != 1 );
+				if ($bound) {
+					$entries = ldap_get_entries($lds, $lsearch);
+					$bound = ( !@ldap_bind($lds, $entries[0]['dn'], $modSettings['ppsldapauth_bindpassword']) );
+				}
+			}
+
+			if ($bound) {
+				// Load all Members and get the appropriate LDAP-Entries to synchronize the EMail-Address
+				$request = $smcFunc['db_query']('','
+					SELECT id_member,member_name,email_address
+					FROM {db_prefix}members',
+					array()
+				);
+				
+				require_once($sourcedir . '/Subs-Members.php');
+				while ($row = $smcFunc['db_fetch_assoc']($request)) {
+					// Get full name (and possibly email address & location) from the directory
+					$entries = ldap_get_entries($lds, ldap_search($lds, $modSettings['ppsldapauth_searchdn'], "({$modSettings['ppsldapauth_searchkey']}={$row['member_name']})", $attributes));
+
+					// Parse the lowest level Organizational Unit as their location
+					if (isset($modSettings['ppsldapauth_locationuseou']) && $modSettings['ppsldapauth_locationuseou'] && (substr_count(strtolower($entries[0]['dn']), 'ou=') > 0)) {
+						// Parse the lowest level Organizational Unit as the location
+						$i1 = stripos($entries[0]['dn'], 'OU=') + 3;
+						$i2 = stripos($entries[0]['dn'], ',OU=', $i1);
+						$location = substr($entries[0]['dn'], $i1, $i2 - $i1);
+
+					} else if (!empty($modSettings['ppsldapauth_locationattr']) && is_array($entries[0][$modSettings['ppsldapauth_locationattr']]) && ($entries[0][$modSettings['ppsldapauth_locationattr']]['count'] >= 1)) {
+						$location = $entries[0][$modSettings['ppsldapauth_locationattr']][0];
+					} else {
+						$location = '';
+					}
+
+					if (isset($modSettings['ppsldapauth_emailuselogin']) && $modSettings['ppsldapauth_emailuselogin']) {
+						$mail = $_POST['user'] . (isset($modSettings['ppsldapauth_emailsuffix']) ? $modSettings['ppsldapauth_emailsuffix'] : '');
+
+					} else if (!empty($modSettings['ppsldapauth_emailattr']) && ($entries[0][$modSettings['ppsldapauth_emailattr']]['count'] >= 1)) {
+						$mail = $entries[0][$modSettings['ppsldapauth_emailattr']][0];
+
+					} else {
+						$mail = 'none@dom.tld';
+					}
+					
+					if ($mail != 'none@dom.tld') {
+						updateMemberData($row['id_member'], array(
+							//'passwd' => $sha_passwd,
+							//'password_salt' => $row['password_salt'],
+							//'passwd_flood' => '',
+							'location' => $smcFunc['htmlspecialchars']($location),
+							'email_address' => $mail,
+							//'real_name' => $smcFunc['htmlspecialchars']($entries[0][$modSettings['ppsldapauth_fullnameattr']][0])
+						));
+					}
+				}
+				$smcFunc['db_free_result']($request);
+				$context['synchronization_done'] = sprintf($txt['admin_register_done'], $context['new_member']['link']);
+			}
+			ldap_close($lds);
+		}
+	}
+
+	// Basic stuff.
+	$context['sub_template'] = 'ppsldap_synchronize';
+	$context['page_title'] = $txt['admin_members'];
+}
+
+
+/* Template Functions below here */
 
 function template_ppsldap_register() {
 	global $context, $settings, $options, $scripturl, $txt, $modSettings;
@@ -415,6 +522,47 @@ function template_ppsldap_register() {
 				<div class="righttext">
 					<input type="submit" name="regSubmit" value="', $txt['register'], '" tabindex="', $context['tabindex']++, '" class="button_submit" />
 					<input type="hidden" name="sa" value="ppsldapregister" />
+				</div>
+			</div>
+			<span class="botslice"><span></span></span>
+			<input type="hidden" name="', $context['session_var'], '" value="', $context['session_id'], '" />
+		</form>
+	</div>
+	<br class="clear" />';
+}
+
+function template_ppsldap_synchronize() {
+	global $context, $settings, $options, $scripturl, $txt, $modSettings;
+	
+	echo '
+		<div class="cat_bar">
+			<h3 class="cat_bar">', $txt['ppsldapsynchronize_title'], '</h3>
+		</div>
+		<form action="', $scripturl, '?action=admin;area=viewmembers" method="post" accept-charset="', $context['character_set'], '" name="postForm" id="postForm">
+			<span class="topslice"><span></span></span>
+			<script language="JavaScript" type="text/javascript"><!-- // --><![]]><![CDATA[CDATA[
+			// ]]]]><![CDATA[></script>
+			<div class="content" id="register_screen">';
+
+	if (!empty($context['registration_done'])) {
+		echo '
+				<div class="windowbg" id="profile_success">
+					', $context['registration_done'], '
+				</div>';
+	}
+
+	echo '
+				<dl class="register_form" id="admin_register_form">
+					<dt>
+						<strong><label for="user_input">', $txt['ppsldapauth_synchronize_check'], ':</label></strong>
+					</dt>
+					<dd>
+						<input type="checkbox" name="dosync" value="true" id="sync_check" tabindex="', $context['tabindex']++, '" />
+					</dd>
+				</dl>
+				<div class="righttext">
+					<input type="submit" name="syncSubmit" value="', $txt['ppsldapauth_synchronize'], '" tabindex="', $context['tabindex']++, '" class="button_submit" />
+					<input type="hidden" name="sa" value="ppsldapsynchronize" />
 				</div>
 			</div>
 			<span class="botslice"><span></span></span>
