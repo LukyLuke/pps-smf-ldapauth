@@ -363,6 +363,26 @@ require_once($sourcedir . '/PPSLdapAuth.php');
 			AND posts >= {int:num_posts}]]></add>
 		</operation>
 
+		<operation>
+			<search position="replace"><![CDATA[$context['letter_links'] .= '<a href="' . $scripturl . '?action=mlist;sa=all;start=' . chr($i) . '#letter' . chr($i) . '">' . strtoupper(chr($i)) . '</a> ';]]></search>
+			<add><![CDATA[$context['letter_links'] .= '<a href="' . $scripturl . '?action=mlist;sa=' . $context['listing_by'] . ';start=' . chr($i) . '#letter' . chr($i) . '">' . strtoupper(chr($i)) . '</a> ';]]></add>
+		</operation>
+
+		<operation>
+			<search position="replace"><![CDATA[$context['page_index'] = constructPageIndex($scripturl . '?action=mlist;sort=' . $_REQUEST['sort'] . (isset($_REQUEST['desc']) ? ';desc' : ''), $_REQUEST['start'], $context['num_members'], $modSettings['defaultMaxMembers']);]]></search>
+			<add><![CDATA[$context['page_index'] = constructPageIndex($scripturl . '?action=mlist;sa=' . $context['listing_by'] . ';sort=' . $_REQUEST['sort'] . (isset($_REQUEST['desc']) ? ';desc' : ''), $_REQUEST['start'], $context['num_members'], $modSettings['defaultMaxMembers']);]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA['url' => $scripturl . '?action=mlist;sort=' . $_REQUEST['sort'] . ';start=' . $_REQUEST['start'],]]></search>
+			<add><![CDATA['url' => $scripturl . '?action=mlist;sa=' . $context['listing_by'] . ';sort=' . $_REQUEST['sort'] . ';start=' . $_REQUEST['start'],]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[$context['columns'][$col]['href'] = $scripturl . '?action=mlist;sort=' . $col . ';start=0';]]></search>
+			<add><![CDATA[$context['columns'][$col]['href'] = $scripturl . '?action=mlist;sa=' . $context['listing_by'] . ';sort=' . $col . ';start=0';]]></add>
+		</operation>
+
 	</file>
 
 	<file name="$themedir/Memberlist.template.php">
