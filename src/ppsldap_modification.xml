@@ -9,7 +9,7 @@
 
 <modification xmlns="http://www.simplemachines.org/xml/modification" xmlns:smf="http://www.simplemachines.org/">
 	<id>LukyLuke:PPSLdapAuth</id>
-	<version>0.1.1</version>
+	<version>0.1.2</version>
 
 	<!-- Edit LogInOut.php to enable PPSLdapAuth integration -->
 	<file name="$sourcedir/LogInOut.php">
@@ -69,6 +69,7 @@ $txt['ppsldapauth_bindpassword'] = 'Password to use for binding to Ldap director
 $txt['ppsldapregister_title'] = 'Register Ldap Member';
 $txt['ppsldapregister_description'] = 'Here you can register members from your LDAP directory who haven\'t logged into SMF yet. This is especially useful if you need to grant group membership or edit their profile prior to their first use of the board.';
 $txt['ppsldapsynchronize_description'] = 'Synchronize Members';
+$txt['view_nonull_members'] = 'Show active mebmers';
 
 ]]></add>
 		</operation>
@@ -102,6 +103,7 @@ $txt['ppsldapauth_bindpassword'] = 'Passwort f&uuml;r die Ldap-Server Anmeldung'
 $txt['ppsldapregister_title'] = 'Register Ldap Member';
 $txt['ppsldapregister_description'] = 'Hier k&ouml;nnen die LDAP-Benutzer ins SMF &uuml;bertragen werden welche sich noch nie angemeldet haben. Dies ist n&uuml;tzlich wenn Benutzer in Gruppen eingetelt werden sollen oder ihre Profile vor dem ersten Login bearbeitet werden m&uuml;ssen.';
 $txt['ppsldapsynchronize_description'] = 'Benutzer Synchronisieren';
+$txt['view_nonull_members'] = 'Zeige aktive Benutzer';
 
 ]]></add>
 		</operation>
@@ -292,6 +294,105 @@ require_once($sourcedir . '/PPSLdapAuth.php');
 	}
 ]]></add>
 		</operation>
+	</file>
+
+<!-- Change the Memberlist -->
+	<file name="$sourcedir/Memberlist.php">
+		<operation>
+			<search position="before"><![CDATA[	$subActions = array(
+		'all' => array($txt['view_all_members'], 'MLAll', $context['listing_by'] == 'all'),
+		'search' => array($txt['mlist_search'], 'MLSearch', $context['listing_by'] == 'search'),]]></search>
+			<add><![CDATA[
+		'nonull' => array($txt['view_nonull_members'], 'MLAll', $context['listing_by'] == 'nonull'),]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[	$use_cache = $modSettings['totalMembers'] > 2000 && (!isset($_REQUEST['sort']) || $_REQUEST['sort'] === 'real_name') && isset($_REQUEST['start']) && $_REQUEST['start'] > $cache_step_size;]]></search>
+			<add><![CDATA[
+	$use_cache = $use_cache && ($context['listing_by'] != 'nonull');]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[		$request = $smcFunc['db_query']('', '
+			SELECT COUNT(*)
+			FROM {db_prefix}members
+			WHERE is_activated = {int:is_activated}]]></search>
+			<add><![CDATA[ AND posts >= {int:num_posts}]]></add>
+		</operation>
+
+		<operation>
+			<search position="after"><![CDATA[				'is_activated' => 1,
+			)
+		);
+		list ($context['num_members']) = $smcFunc['db_fetch_row']($request);]]></search>
+			<add><![CDATA[
+				'num_posts' => ($context['listing_by'] == 'nonull') ? 1 : 0,
+]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[			WHERE LOWER(SUBSTRING(real_name, 1, 1)) < {string:first_letter}
+				AND is_activated = {int:is_activated}]]></search>
+			<add><![CDATA[ AND posts >= {int:num_posts}]]></add>
+		</operation>
+
+		<operation>
+			<search position="after"><![CDATA[				'is_activated' => 1,
+				'first_letter' => $_REQUEST['start'],
+			)
+		);
+		list ($_REQUEST['start']) = $smcFunc['db_fetch_row']($request);]]></search>
+			<add><![CDATA[
+				'num_posts' => ($context['listing_by'] == 'nonull') ? 1 : 0,
+]]></add>
+		</operation>
+
+		<operation>
+			<search position="after"><![CDATA[	$limit = $_REQUEST['start'];
+	$query_parameters = array(
+		'regular_id_group' => 0,
+		'is_activated' => 1,]]></search>
+			<add><![CDATA[
+		'num_posts' => ($context['listing_by'] == 'nonull') ? 1 : 0,]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[		WHERE mem.is_activated = {int:is_activated}' . (empty($where) ? '' : '
+			AND ' . $where) . ']]></search>
+			<add><![CDATA[
+			AND posts >= {int:num_posts}]]></add>
+		</operation>
+
+	</file>
+
+	<file name="$themedir/Memberlist.template.php">
+
+		<operation>
+			<search position="before"><![CDATA[function template_main()
+{
+	global $context, $settings, $options, $scripturl, $txt;
+
+	// Build the memberlist button array.
+	$memberlist_buttons = array(
+			'view_all_members' => array('text' => 'view_all_members', 'image' => 'mlist.gif', 'lang' => true, 'url' => $scripturl . '?action=mlist' . ';sa=all', 'active'=> true),
+			'mlist_search' => array('text' => 'mlist_search', 'image' => 'mlist.gif', 'lang' => true, 'url' => $scripturl . '?action=mlist' . ';sa=search'),]]></search>
+			<add><![CDATA[
+			'view_nonull_members' => array('text' => 'view_nonull_members', 'image' => 'mlist.gif', 'lang' => true, 'url' => $scripturl . '?action=mlist' . ';sa=nonull'),]]></add>
+		</operation>
+
+		<operation>
+			<search position="before"><![CDATA[function template_search()
+{
+	global $context, $settings, $options, $scripturl, $txt;
+
+	// Build the memberlist button array.
+	$memberlist_buttons = array(
+			'view_all_members' => array('text' => 'view_all_members', 'image' => 'mlist.gif', 'lang' => true, 'url' => $scripturl . '?action=mlist' . ';sa=all'),
+			'mlist_search' => array('text' => 'mlist_search', 'image' => 'mlist.gif', 'lang' => true, 'url' => $scripturl . '?action=mlist' . ';sa=search', 'active' => true),]]></search>
+			<add><![CDATA[
+			'view_nonull_members' => array('text' => 'view_nonull_members', 'image' => 'mlist.gif', 'lang' => true, 'url' => $scripturl . '?action=mlist' . ';sa=nonull'),]]></add>
+		</operation>
+
 	</file>
 
 </modification>

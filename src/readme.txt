@@ -1,4 +1,8 @@
-PPSLdapAuth (0.1.0) should provide authentication from LDAP-Servers like OpenLDAP, MS Active Directory and others. Please uninstall prior version before upgrade to a new Version. Configured Values will not be lost, the are stored permanently in the Database, but you have to reenable PPSLdapAuth after again.
+PPSLdapAuth (0.1.2) should provide authentication from LDAP-Servers like OpenLDAP, MS Active Directory and others. Please uninstall prior version before upgrade to a new Version. Configured Values will not be lost, the are stored permanently in the Database, but you have to reenable PPSLdapAuth after again.
+
+NEW in 0.1.2: Added new view im Memberlist where only Members with more than zero posts are listen.
+
+NEW in 0.1.1: Added Synchronisation of LDAP-Email Addresses into SMF (See Administration -> Members -> Synchronisation)
 
 If PPSLdapAuth is enabled, the users cannot change their password, secret question and answer, email address and username.
 

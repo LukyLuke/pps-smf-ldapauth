@@ -10,7 +10,7 @@
 <package-info xmlns="http://www.simplemachines.org/xml/package-info" xmlns:smf="http://www.simplemachines.org/">
 	<id>LukyLuke:PPSLdapAuth</id>
 	<name>PPSLdap Authentication</name>
-	<version>0.1.1</version>
+	<version>0.1.2</version>
 	<type>modification</type>
 
 	<install>
